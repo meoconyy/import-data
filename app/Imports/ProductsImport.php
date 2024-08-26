@@ -45,7 +45,14 @@ class ProductsImport implements ToCollection, WithHeadingRow, WithChunkReading
             ];
         }
 
-        Product::insert($data);
+        foreach (array_chunk($data, 1000) as $chunk) {
+            try {
+                Product::insert($chunk);
+            } catch (\Exception $e) {
+                // Xử lý lỗi
+                Log::error("Insert failed: " . $e->getMessage());
+            }
+        }
     }
 
     public function chunkSize(): int
