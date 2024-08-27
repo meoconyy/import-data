@@ -13,9 +13,16 @@ class HomeController extends Controller
 
     }
 
-    public function welcome()
+    public function welcome(Request $request)
     {
-        return view('welcome');
+        if ($request->ajax()) {
+            $products = Product::paginate(10);
+            return view('product-detail', compact('products'))->render();
+        }
+
+        $products = Product::paginate(10);
+
+        return view('welcome', compact('products'));
     }
 
     public function import(Request $request)

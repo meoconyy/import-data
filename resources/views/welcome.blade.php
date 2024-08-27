@@ -3,13 +3,12 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="csrf-token" content="{{ csrf_token() }}">
 
         <title>Laravel</title>
 
         <!-- Fonts -->
         <link href="https://fonts.bunny.net/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
-        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
         <!-- Styles -->
         <style>
@@ -38,12 +37,24 @@
             text-align: center;
         }
     </style>
-    <body class="antialiased">
-        <div class="relative flex items-top justify-center min-h-screen sm:items-center py-4 sm:pt-0" style="background: black">
+    <body class="antialiased" style="background: black">
+        <div class="relative flex items-top justify-center sm:items-center py-4 sm:pt-0">
             <input type="file" id="input-excel" hidden/>
             <label for="input-excel" style="background-image: url('/images/bg.jpg');">Upload File</label>
         </div>
+
+        <div id="product-list" style="color: white">
+            @include('product-detail')
+        </div>
+
+        @if(!empty($products))
+            <div class="pagination">
+                {{ $products->links() }}
+            </div>
+        @endif
     </body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         document.getElementById('input-excel').addEventListener('change', handleFile, false);
 
@@ -109,16 +120,34 @@
                 body: JSON.stringify(data),
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                }
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                credentials: 'same-origin'
             })
-                .then(response => response.json())
+                .then(response => {
+                    if (response.redirected) {
+                        window.location.href = response.url;
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     console.log('Success:', data);
+                    window.location.reload();
                 })
                 .catch((error) => {
                     console.error('Error:', error);
                 });
         }
+
+        $(document).on('click', '.pagination a', function(event) {
+            event.preventDefault();
+            var url = $(this).attr('href');
+            $.ajax({
+                url: url,
+                success: function(data) {
+                    window.location.href = url;
+                }
+            });
+        });
     </script>
 </html>
