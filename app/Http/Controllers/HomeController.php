@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Maatwebsite\Excel\Facades\Excel;
-use App\Imports\ProductsImport;
+use App\Models\Product;
+use DB;
 
 class HomeController extends Controller
 {
@@ -20,10 +20,16 @@ class HomeController extends Controller
 
     public function import(Request $request)
     {
-        $request->validate([
-            'file' => 'required|mimes:xlsx',
-        ]);
-        Excel::import(new ProductsImport, $request->file('file'));
+        $data = json_decode(file_get_contents('php://input'), true);
+        $chunkSize = 1000;
+        if ($data) {
+            DB::transaction(function () use ($data, $chunkSize) {
+                foreach (array_chunk($data, $chunkSize) as $chunk) {
+                    Product::insert($chunk);
+                }
+            });
+        }
+
         return back()->with('success', 'Products imported successfully.');
     }
 }

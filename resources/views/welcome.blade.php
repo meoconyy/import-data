@@ -8,6 +8,8 @@
 
         <!-- Fonts -->
         <link href="https://fonts.bunny.net/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
         <!-- Styles -->
         <style>
@@ -38,21 +40,85 @@
     </style>
     <body class="antialiased">
         <div class="relative flex items-top justify-center min-h-screen sm:items-center py-4 sm:pt-0" style="background: black">
-            <form action="{{ route('import-data') }}" method="post" enctype="multipart/form-data">
-                <div>
-                    @csrf
-                    <div>
-                        <input type="file" name="file" id="upload" hidden/>
-                        <label for="upload" style="background-image: url('/images/bg.jpg');">Upload File</label>
-                    </div>
-                    @error('file')
-                    <p class="" style="color: red; font-size: 20px; text-align: center">{{ $errors->first('file') }}</p>
-                    @enderror
-                    <div class="" style="text-align: center; margin-top: 10px">
-                        <button type="submit" style="width: 100px; height: 50px; border-radius: 8px; background: gray; color: white">Import</button>
-                    </div>
-                </div>
-            </form>
+            <input type="file" id="input-excel" hidden/>
+            <label for="input-excel" style="background-image: url('/images/bg.jpg');">Upload File</label>
         </div>
     </body>
+    <script>
+        document.getElementById('input-excel').addEventListener('change', handleFile, false);
+
+        function handleFile(e) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(event) {
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+
+                // Assuming you want to parse the first sheet
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                const rows = jsonData.slice(1);
+
+                const formattedData = rows.map(row => {
+                    const hapuPriceUpdateDate = row[15];
+                    const formattedHapuPriceUpdateDate = hapuPriceUpdateDate ? new Date(hapuPriceUpdateDate).toISOString().split('T')[0] : null;
+
+                    return {
+                        short_name: row[0] || '',
+                        name: row[1] || '',
+                        product_id: row[2] || '',
+                        unit_1: row[3] || '',
+                        unit_2: row[4] || '',
+                        factor_1: row[5] || 0,
+                        unit_3: row[6] || '',
+                        factor_2: row[7] || 0,
+                        purchase_price: row[8] || 0,
+                        sale_price: row[9] || 0,
+                        declared_price: row[10] || 0,
+                        cost_goods_sold: row[11] || 0,
+                        list_price: row[12] || 0,
+                        specific_cost: row[13] || 0,
+                        hapu_price: row[14] || 0,
+                        hapu_price_update_date: formattedHapuPriceUpdateDate,
+                        min_sale_price: row[16] || 0,
+                        max_sale_price: row[17] || 0,
+                        quality_registration_number: row[18] || '',
+                        specification: row[19] || '',
+                        storage_code: row[20] || '',
+                        storage_location: row[21] || '',
+                        position: row[22] || '',
+                        product_type: row[23] || '',
+                        classification: row[24] || '',
+                        product_group: row[25] || '',
+                    };
+                });
+
+                sendDataToPHP(formattedData);
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        function sendDataToPHP(data) {
+            fetch('/import-data', {
+                method: 'POST',
+                body: JSON.stringify(data),
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Success:', data);
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+        }
+    </script>
 </html>
